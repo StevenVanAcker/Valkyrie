@@ -222,9 +222,9 @@ class ValkyrieSlave():
                         d = docker.from_env()
                         # run containers
                         try:
-                            d.containers.run(imagename, auto_remove=True)
-                        except:
-                            pass
+                            d.containers.run(imagename, remove=True)
+                        except Exception as e:
+                            self.logger.debug("_startSingleDockerInstance() during run threw exception: {}".format(e))
                         self._signalMaintenanceThread()
                         self.logger.debug("Done running container {}".format(imagename))
                     except Exception as e:
