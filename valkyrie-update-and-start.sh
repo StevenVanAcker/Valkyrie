@@ -6,8 +6,9 @@ cd "$REPODIR"
 
 while true;
 do
-	# until forever: update and start slave
+	# until forever: update, cleanup and start slave
 	git pull
+	docker system prune -f
 	./valkyrie-slave.py
 	sleep 1 # avoid busy-loop
 done
