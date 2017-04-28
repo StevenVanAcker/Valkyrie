@@ -2,7 +2,7 @@
 
 import time
 import docker
-import boto3
+import boto3, botocore
 import pprint
 import threading
 import json
@@ -55,6 +55,8 @@ class ValkyrieSlave():
                 self.recipe = {}
                 self.dockerFetch_signal_condition = threading.Condition()
                 self.maintenance_signal_condition = threading.Condition()
+
+                self.kill_everything = False
 #}}}
         def getStatus(self): # FIXME {{{
                 # count running instances
@@ -124,6 +126,10 @@ class ValkyrieSlave():
                         return True
 
                     return False
+            except botocore.exceptions.NoRegionError as e:
+                self.logger.error("processMessageFromMaster() received NoRegionError from boto3: {}".format(e))
+                self.kill_everything = True
+                time.sleep(1)
             except Exception as e:
                 self.logger.error("processMessageFromMaster() threw an exception: {}".format(e))
                 return False
@@ -315,8 +321,10 @@ class ValkyrieSlave():
                 self.logger.info("Started masterThread")
 
                 self.logger.warning("xxx")
-                while True:
+                while not self.kill_everything:
                     time.sleep(1)
+
+                self.logger.debug("Exit from main loop because self.kill_everything == True")
 #}}}
 
 if __name__ == "__main__":
