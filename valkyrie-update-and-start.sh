@@ -9,6 +9,6 @@ do
 	# until forever: update, cleanup and start slave
 	git pull
 	docker system prune -f
-	./valkyrie-slave.py
+	./valkyrie.py
 	sleep 1 # avoid busy-loop
 done

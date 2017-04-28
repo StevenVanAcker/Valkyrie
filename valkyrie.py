@@ -11,6 +11,28 @@ import subprocess
 import collections
 import logging
 
+class ValkyrieCommon():
+        SQS_QUEUE_MASTER = "valkyrieMaster"
+
+        def __init__(self): #{{{
+            self.logger = logging.getLogger(self.__class__.__name__)
+            self.logger.setLevel(logging.WARNING)
+            ch = logging.StreamHandler()
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            ch.setFormatter(formatter)
+            self.logger.addHandler(ch)
+#}}}
+        def get_maybe_create_queue(self, queuename): #{{{
+            sqs = boto3.resource('sqs') 
+            inq = None
+            try:
+                inq = sqs.get_queue_by_name(QueueName=queuename)
+                return inq
+            except Exception as e:
+                inq = sqs.create_queue(QueueName=queuename)
+            return inq
+#}}}
+
 # threads:
 # masterThread (main)
 #    receives messages from master and handles them
@@ -32,31 +54,21 @@ import logging
 #    run a single docker container until done
 #    signal maintenance thread when done
 
-class ValkyrieSlave():
-        """
-        Docker host
-        """
+class ValkyrieSlave(ValkyrieCommon):
         MAINTENANCETHREAD_SLEEP = 3 # 12099
         DOCKERFETCHTHREAD_SLEEP = 3099
         MASTERTHREAD_SLEEP = 0
         STATUSTHREAD_SLEEP = 1399
 
-        SQS_QUEUE_MASTER = "valkyrieMaster"
-
         def __init__(self, queue): #{{{
-                self.logger = logging.getLogger("AAAAAAAAAAAAA")
-                self.logger.setLevel(logging.WARNING)
-                ch = logging.StreamHandler()
-                formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-                ch.setFormatter(formatter)
-                self.logger.addHandler(ch)
+            super().__init__()
 
-                self.queue = queue
-                self.recipe = {}
-                self.dockerFetch_signal_condition = threading.Condition()
-                self.maintenance_signal_condition = threading.Condition()
+            self.queue = queue
+            self.recipe = {}
+            self.dockerFetch_signal_condition = threading.Condition()
+            self.maintenance_signal_condition = threading.Condition()
 
-                self.kill_everything = False
+            self.kill_everything = False
 #}}}
         def getStatus(self): # FIXME {{{
                 # count running instances
@@ -109,7 +121,7 @@ class ValkyrieSlave():
             """
             try:
                 sqs = boto3.resource('sqs') 
-                inq = sqs.get_queue_by_name(QueueName=self.queue)
+                inq = self.get_maybe_create_queue(self.queue)
 
                 for msg in inq.receive_messages(WaitTimeSeconds = self.MASTERTHREAD_SLEEP, MaxNumberOfMessages=1, MessageAttributeNames=['All']):
                     self.logger.debug("Message received: {}".format(msg.body))
@@ -329,6 +341,44 @@ class ValkyrieSlave():
                     time.sleep(1)
 
                 self.logger.debug("Exit from main loop because self.kill_everything == True")
+#}}}
+
+
+# loop and read all messages, then send same recipe to all hosts
+class ValkyrieMaster(ValkyrieCommon):
+        MASTERTHREAD_SLEEP = 2
+
+        def __init__(self, recipe): #{{{
+            super().__init__()
+            self.recipe = recipe
+            self.kill_everything = False
+#}}}
+        def processMessageFromSlaves(self): # FIXME {{{
+            try:
+                sqs = boto3.resource('sqs') 
+                inq = self.get_maybe_create_queue(self.SQS_QUEUE_MASTER)
+
+                for msg in inq.receive_messages(WaitTimeSeconds = self.MASTERTHREAD_SLEEP, MaxNumberOfMessages=1, MessageAttributeNames=['All']):
+                    self.logger.debug("Message received: {}".format(msg.body))
+                    msgdata = json.loads(msg.body)
+                    msg.delete()
+
+                    # return True if the recipe was updated
+                    if msgdata["type"] == "updateRecipe":
+                        return True
+
+                    return False
+            except botocore.exceptions.NoRegionError as e:
+                self.logger.error("processMessageFromSlaves() received NoRegionError from boto3: {}".format(e))
+                self.kill_everything = True
+            except Exception as e:
+                self.logger.error("processMessageFromSlaves() threw an exception: {}".format(e))
+                return False
+#}}}
+        def run(self): #{{{
+                while not self.kill_everything:
+                    self.processMessageFromSlaves()
+                    time.sleep(1)
 #}}}
 
 if __name__ == "__main__":
