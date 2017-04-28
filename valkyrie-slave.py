@@ -325,7 +325,6 @@ class ValkyrieSlave():
                 self.masterThread.start()
                 self.logger.info("Started masterThread")
 
-                self.logger.warning("xxx")
                 while not self.kill_everything:
                     time.sleep(1)
 
@@ -333,7 +332,10 @@ class ValkyrieSlave():
 #}}}
 
 if __name__ == "__main__":
-    slave = ValkyrieSlave("test")
+    import random, string
+    rndqueue = "valkyrie-" + ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
+
+    slave = ValkyrieSlave(rndqueue)
     #slave.logger.setLevel(logging.INFO)
     slave.logger.setLevel(logging.DEBUG)
     slave.run()
