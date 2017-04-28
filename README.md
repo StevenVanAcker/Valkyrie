@@ -11,5 +11,5 @@ workload is too low.
 
 TODO:
 - describe the protocol between slave and master
-- use random queue names to receive communication from the master, and persist the queue name in case of restarts
 - improve logging
+- should running docker instances be killed after a shutdown signal from the master? maybe a kill=True option?
