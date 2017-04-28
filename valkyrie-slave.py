@@ -124,6 +124,11 @@ class ValkyrieSlave():
                                 self._signalMaintenanceThread()
                                 self._signalDockerFetchThread()
                         return True
+                    if msgdata["type"] == "shutdown":
+                        self.logger.error("processMessageFromMaster() received shutdown signal")
+                        self.kill_everything = True
+                        time.sleep(100)
+                        return True
 
                     return False
             except botocore.exceptions.NoRegionError as e:
