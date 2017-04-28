@@ -32,6 +32,13 @@ class ValkyrieCommon():
                 inq = sqs.create_queue(QueueName=queuename)
             return inq
 #}}}
+        def send_message_to_queue(self, queuename, msg): #{{{
+            q = self.get_maybe_create_queue(queuename)
+            if q != None:
+                q.send_message(MessageBody=json.dumps(msg))
+                return True
+            return False
+#}}}
 
 # threads:
 # masterThread (main)
@@ -293,6 +300,10 @@ class ValkyrieSlave(ValkyrieCommon):
         def _statusThreadLoop(self): #FIXME{{{
             while True:
                 self.logger.debug("_statusThreadLoop() says hi")
+                self.send_message_to_queue(self.SQS_QUEUE_MASTER, {
+                    "type": "dummy",
+                    "lala": self.queue
+                })
                 time.sleep(self.STATUSTHREAD_SLEEP)
 #}}}
         def _dockerFetchThreadLoop(self): #{{{
