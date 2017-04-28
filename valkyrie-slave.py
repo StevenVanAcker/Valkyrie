@@ -321,8 +321,8 @@ class ValkyrieSlave():
 
 if __name__ == "__main__":
     slave = ValkyrieSlave("test")
-    #slave.logger.setLevel(logging.DEBUG)
-    slave.logger.setLevel(logging.INFO)
+    #slave.logger.setLevel(logging.INFO)
+    slave.logger.setLevel(logging.DEBUG)
     slave.run()
 
 
